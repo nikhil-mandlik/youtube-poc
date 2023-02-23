@@ -72,7 +72,6 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 
 
-
     // Fragment KTX
     implementation("androidx.fragment:fragment-ktx:1.5.5")
     // ViewModel
@@ -106,20 +105,23 @@ dependencies {
 
     implementation("pub.devrel:easypermissions:3.0.0")
 
-    implementation("com.google.api-client:google-api-client-android:2.2.0"){
+    implementation("com.google.api-client:google-api-client-android:2.2.0") {
         exclude group: 'org.apache.httpcomponents'
     }
     implementation("com.google.apis:google-api-services-youtube:v3-rev222-1.25.0") {
         exclude group: 'org.apache.httpcomponents'
     }
-    implementation ("com.google.apis:google-api-services-tasks:v1-rev71-1.25.0") {
+    implementation("com.google.apis:google-api-services-tasks:v1-rev71-1.25.0") {
         exclude group: 'org.apache.httpcomponents'
     }
-
-
+    implementation("com.google.api-client:google-api-client-appengine:2.2.0") {
+        exclude group: 'org.apache.httpcomponents'
+    }
+    implementation("com.google.api-client:google-api-client-appengine:2.2.0") {
+        exclude group: 'org.apache.httpcomponents'
+    }
     // Yt Player Webview
     implementation 'com.pierfrancescosoffritti.androidyoutubeplayer:core:11.1.0'
-
 
 
 }

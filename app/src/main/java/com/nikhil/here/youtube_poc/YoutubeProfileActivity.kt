@@ -15,25 +15,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.HttpTransport
+import com.google.api.client.googleapis.extensions.appengine.auth.oauth2.AppIdentityCredential
 import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.JsonFactory
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.youtube.YouTube
+import com.google.api.services.youtube.YouTubeRequestInitializer
 import com.google.api.services.youtube.YouTubeScopes
+import com.google.gson.Gson
 import com.nikhil.here.youtube_poc.databinding.ActivityYoutubeProfileBinding
 import com.nikhil.here.youtube_poc.ui.theme.YoutubepocTheme
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.Collections
 
 
 @AndroidEntryPoint
 class YoutubeProfileActivity : FragmentActivity() {
     private lateinit var binding: ActivityYoutubeProfileBinding
     private var googleApiAvailability: GoogleApiAvailability? = null
-    private var credential : GoogleAccountCredential? = null
+    private var credential: GoogleAccountCredential? = null
 
     private val youtubeProfileViewModel: YoutubeProfileViewModel by viewModels()
+
 
     companion object {
         private const val TAG = "YoutubeProfileActivity"
@@ -61,20 +67,15 @@ class YoutubeProfileActivity : FragmentActivity() {
 
     private fun initializeGooglePlayServices() {
         googleApiAvailability = GoogleApiAvailability.getInstance()
-
-        credential =
-            GoogleAccountCredential.usingOAuth2(this, listOf(YouTubeScopes.YOUTUBE))
-
-        val service = com.google.api.services.tasks.Tasks.Builder(
-            NetHttpTransport(),
-            JacksonFactory.getDefaultInstance(),
-            credential
-        ).setApplicationName("youtube_poc").build()
-
-        credential?.let {
-            startActivityForResult(it.newChooseAccountIntent(), 101)
+        val youtubeRequestInitializer = object : YouTubeRequestInitializer() {
 
         }
+        val credential = AppIdentityCredential(Collections.singletonList(YouTubeScopes.YOUTUBE))
+        val youtube = YouTube.Builder(NetHttpTransport(), GsonFactory(), credential)
+            .setYouTubeRequestInitializer(youtubeRequestInitializer)
+            .build()
+
+        //youtube.activities()
 
     }
 
