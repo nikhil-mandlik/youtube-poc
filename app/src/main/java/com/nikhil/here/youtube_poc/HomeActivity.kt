@@ -6,7 +6,9 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import com.nikhil.here.youtube_poc.databinding.ActivityHomeBinding
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class HomeActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityHomeBinding
@@ -15,10 +17,6 @@ class HomeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        binding.btnYtOfficial.setOnClickListener {
-            startActivity(Intent(this, MainActivity::class.java))
-        }
 
         binding.btnYtWebView.setOnClickListener {
             startActivity(Intent(this, WebViewActivity::class.java))
