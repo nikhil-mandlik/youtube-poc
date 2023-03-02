@@ -10,7 +10,7 @@
         android:id="@+id/btnYtWebView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="YT WebView"/>
+        android:text="YT Player"/>
 
     <Button
         android:id="@+id/btnYtProfile"

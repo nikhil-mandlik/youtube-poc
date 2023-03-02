@@ -19,9 +19,7 @@ class AppModule {
 
     companion object {
         const val YT_BASE_URL = "https://youtube.googleapis.com/youtube/v3/"
-        const val AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/"
     }
-
 
     @Provides
     @Singleton
@@ -31,30 +29,16 @@ class AppModule {
 
     @Provides
     @Singleton
-    @Named("youtube")
     fun provideRetrofit(okHttpClient: OkHttpClient) = Retrofit.Builder()
         .baseUrl(YT_BASE_URL)
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    @Provides
-    @Singleton
-    @Named("auth")
-    fun provideAuthRetrofit(okHttpClient: OkHttpClient) = Retrofit.Builder()
-        .baseUrl(AUTH_BASE_URL)
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
 
     @Provides
     @Singleton
-    fun provideApiService(@Named("youtube") retrofit: Retrofit) = retrofit.create(ApiService::class.java)
-
-    @Provides
-    @Singleton
-    fun provideAuthService(@Named("auth") retrofit: Retrofit) = retrofit.create(AuthService::class.java)
+    fun provideApiService(retrofit: Retrofit) = retrofit.create(ApiService::class.java)
 
 
 }
