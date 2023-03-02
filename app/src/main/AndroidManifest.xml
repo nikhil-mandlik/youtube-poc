@@ -42,7 +42,7 @@
 
         <meta-data
             android:name="com.google.android.youtube.v3.API_KEY"
-            android:value="AIzaSyD29qEryxgXtD_ZLnxXSTvfRc1IPZTUKUM"/>
+            android:value="<YOUR_API_KEY>"/>
     </application>
 
 </manifest>
