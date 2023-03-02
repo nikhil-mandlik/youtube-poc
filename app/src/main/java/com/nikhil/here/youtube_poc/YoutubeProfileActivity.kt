@@ -1,5 +1,6 @@
 package com.nikhil.here.youtube_poc
 
+import android.accounts.Account
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -28,6 +29,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
 import com.google.android.gms.auth.GoogleAuthUtil
+import com.google.android.gms.auth.api.identity.BeginSignInRequest.GoogleIdTokenRequestOptions
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -36,19 +38,19 @@ import com.google.android.gms.common.SignInButton
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.HttpRequest
-import com.google.api.client.http.HttpRequestInitializer
+import com.google.api.client.auth.oauth2.AuthorizationCodeFlow
+import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl
+import com.google.api.client.auth.oauth2.AuthorizationCodeTokenRequest
+import com.google.api.client.auth.oauth2.TokenRequest
+import com.google.api.client.http.GenericUrl
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.YouTubeScopes
 import com.nikhil.here.youtube_poc.databinding.ActivityYoutubeProfileBinding
 import com.nikhil.here.youtube_poc.ui.theme.YoutubepocTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.lang.Exception
 
 
 @AndroidEntryPoint
@@ -56,6 +58,7 @@ class YoutubeProfileActivity : FragmentActivity() {
     private lateinit var binding: ActivityYoutubeProfileBinding
     private val youtubeProfileViewModel: YoutubeProfileViewModel by viewModels()
     private var mGoogleSignInClient: GoogleSignInClient? = null
+    private var mToken: String = ""
 
     companion object {
         private const val TAG = "YoutubeProfileActivity"
@@ -119,12 +122,58 @@ class YoutubeProfileActivity : FragmentActivity() {
                             )
                         }
                     }
+
+                    Button(onClick = { silentSignIn() }) {
+                        Text(text = "Silent Signin")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = {
+                        invalidateAndFetchNewToken()
+                    }) {
+                        Text(text = "Invalidate & Fetch New Toke ")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { youtubeProfileViewModel.fetchYtActivities() }) {
+                        Text(text = "Fetch Youtube Activities")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = {
+                        youtubeProfileViewModel.fetchUserActivities()
+                    }) {
+                        Text(text = "Fetch User Youtube Activities")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = {
+                        youtubeProfileViewModel.fetchAuthInfo()
+                    }) {
+                        Text(text = "Fetch Auth Info")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = {
+                        youtubeProfileViewModel.fetchTokenInfo()
+                    }) {
+                        Text(text = "Fetch Auth Info")
+                    }
                     Divider()
                     YoutubeFeed()
                 }
             }
         }
         initializeGooglePlayServices()
+    }
+
+    private fun invalidateAndFetchNewToken() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                GoogleAuthUtil.clearToken(this@YoutubeProfileActivity,mToken)
+                val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(this@YoutubeProfileActivity)
+                lastSignedInAccount?.account?.let { fetchToken(it) }
+            } catch (e : Exception) {
+                Log.i(TAG, "invalidateAndFetchNewToken: exception $e")
+            }
+     
+        }
+
     }
 
 
@@ -150,21 +199,35 @@ class YoutubeProfileActivity : FragmentActivity() {
             //val token = GoogleAccountCredential.usingOAuth2(this, listOf(YouTubeScopes.YOUTUBE_READONLY)).token
             //Log.i(TAG, "initializeGooglePlayServices: token $token")
             lastSignedInAccount.account?.let { account ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val scope = "oauth2:${Scope(YouTubeScopes.YOUTUBE_READONLY).scopeUri}"
-                        val token = GoogleAuthUtil.getToken(
-                            this@YoutubeProfileActivity,
-                            account,
-                            scope
-                        )
-                        Log.i(TAG, "initializeGooglePlayServices: token $token")
-                        youtubeProfileViewModel.updateAccessToken(token)
-                    } catch (e : Exception) {
-                        Log.i(TAG, "initializeGooglePlayServices: ${e.localizedMessage}")
-                    }
-                }
+                Log.i(
+                    TAG,
+                    "initializeGooglePlayServices: granted scopes ${
+                        lastSignedInAccount.grantedScopes.joinToString(separator = "_") { scope -> "$scope" }
+                    }"
+                )
+                Log.i(
+                    TAG,
+                    "initializeGooglePlayServices: isExpired ${lastSignedInAccount.isExpired}"
+                )
+                fetchToken(account = account)
+            }
+        }
+    }
 
+    private fun fetchToken(account : Account) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val scope = "oauth2:${Scope(YouTubeScopes.YOUTUBE_READONLY).scopeUri}"
+                val token = GoogleAuthUtil.getToken(
+                    this@YoutubeProfileActivity,
+                    account,
+                    scope
+                )
+                mToken = token
+                Log.i(TAG, "fetchToken: token $token")
+                youtubeProfileViewModel.updateAccessToken(token)
+            } catch (e: Exception) {
+                Log.i(TAG, "fetchToken exception :  ${e.localizedMessage}")
             }
         }
     }
@@ -183,6 +246,23 @@ class YoutubeProfileActivity : FragmentActivity() {
                 startForResult.launch(it)
             }
         }
+    }
+
+    private fun silentSignIn() {
+        try {
+            Log.i(TAG, "silentSignIn: initiating silent sign in")
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .build()
+            val mGoogleSignInClient2 = GoogleSignIn.getClient(this, gso)
+            val task = mGoogleSignInClient2.silentSignIn()
+            task.addOnSuccessListener {
+                Log.i(TAG, "silentSignIn: isExpired ${it.isExpired}")
+            }
+        } catch (e: Exception) {
+            Log.i(TAG, "silentSignIn: exception $e")
+        }
+
     }
 
     private fun fetchYoutubeProfile() {
