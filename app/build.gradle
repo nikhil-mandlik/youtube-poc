@@ -102,21 +102,16 @@ dependencies {
     // Google Play Services
     implementation("com.google.android.gms:play-services-auth:20.4.1")
     implementation("com.google.android.gms:play-services-auth-base:18.0.7")
+    implementation("com.google.apis:google-api-services-youtube:v3-rev222-1.25.0") {
+        exclude group: 'org.apache.httpcomponents'
+    }
 
     implementation("pub.devrel:easypermissions:3.0.0")
 
     implementation("com.google.api-client:google-api-client-android:2.2.0") {
         exclude group: 'org.apache.httpcomponents'
     }
-    implementation("com.google.apis:google-api-services-youtube:v3-rev222-1.25.0") {
-        exclude group: 'org.apache.httpcomponents'
-    }
-    implementation("com.google.apis:google-api-services-tasks:v1-rev71-1.25.0") {
-        exclude group: 'org.apache.httpcomponents'
-    }
-    implementation("com.google.api-client:google-api-client-appengine:2.2.0") {
-        exclude group: 'org.apache.httpcomponents'
-    }
+
     implementation("com.google.api-client:google-api-client-appengine:2.2.0") {
         exclude group: 'org.apache.httpcomponents'
     }

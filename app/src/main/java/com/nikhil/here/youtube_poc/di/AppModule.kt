@@ -19,7 +19,7 @@ class AppModule {
 
     companion object {
         const val YT_BASE_URL = "https://youtube.googleapis.com/youtube/v3/"
-        const val AUTH_BASE_URL = "https://www.googleapis.com/oauth2/v3/"
+        const val AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/"
     }
 
 
