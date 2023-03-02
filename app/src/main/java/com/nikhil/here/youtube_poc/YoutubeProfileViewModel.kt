@@ -33,6 +33,7 @@ class YoutubeProfileViewModel @Inject constructor(
         container(YtProfileState())
 
     private var accessToken: String? = null
+    private var accessTokenV2: String = "ya29.a0AVvZVsqJjtLhdVaUgKEvEKet9hg38sRnOlPur9gRqOv_HdeC-iQDWnwrqWB1qxg3t_9xmaujl4sULI1tkxQD3G2x129XrKUPjwsrVJWgmJF2lBx-YDrK7JYUYIzTYPM_QIxzhlI38LgFqMLCorNPyOndDF0caCgYKARoSARASFQGbdwaIvoZxuTSeEFek0ppg9J7znw0163"
 
     init {
     }
@@ -75,20 +76,42 @@ class YoutubeProfileViewModel @Inject constructor(
     fun fetchUserActivities() {
         intent {
             try {
-//                val response = apiService.fetchUserActivities(
+                val response = apiService.fetchUserActivities(
+                    part = "snippet,contentDetails",
+                    maxResults = 25,
+                    mine = true,
+                    headers = mapOf(
+                        Pair("Authorization","Bearer $accessToken")
+                    )
+                )
+//                val response = apiService.fetchUserActivitiesWithoutHeaders(
 //                    part = "snippet",
 //                    maxResults = 10,
 //                    mine = true,
-//                    headers = mapOf(
-//                        Pair("Authorization","Bearer $accessToken")
-//                    )
+//                    accessToken = accessToken.orEmpty()
 //                )
-                val response = apiService.fetchUserActivitiesWithoutHeaders(
-                    part = "snippet",
-                    maxResults = 10,
+                Log.i(TAG, "fetchUserActivities: $response")
+            } catch (e: Exception) {
+                Log.i(TAG, "fetchUserActivities: $e")
+            }
+        }
+    }
+    fun fetchPlayList() {
+        intent {
+            try {
+                val response = apiService.fetchPlayLists(
+                    part = "snippet,contentDetails",
                     mine = true,
-                    accessToken = accessToken.orEmpty()
+                    headers = mapOf(
+                        Pair("Authorization","Bearer $accessToken")
+                    )
                 )
+//                val response = apiService.fetchUserActivitiesWithoutHeaders(
+//                    part = "snippet",
+//                    maxResults = 10,
+//                    mine = true,
+//                    accessToken = accessToken.orEmpty()
+//                )
                 Log.i(TAG, "fetchUserActivities: $response")
             } catch (e: Exception) {
                 Log.i(TAG, "fetchUserActivities: $e")

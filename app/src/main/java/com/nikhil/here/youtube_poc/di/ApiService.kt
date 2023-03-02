@@ -18,6 +18,13 @@ interface ApiService {
         @HeaderMap headers : Map<String,String>
     ) : Call<String>
 
+    @GET("playlists")
+    suspend fun fetchPlayLists(
+        @Query("part") part : String,
+        @Query("mine") mine : Boolean,
+        @HeaderMap headers : Map<String,String>
+    ) : Call<String>
+
     @GET("activities")
     suspend fun fetchUserActivitiesWithoutHeaders(
         @Query("part") part : String,

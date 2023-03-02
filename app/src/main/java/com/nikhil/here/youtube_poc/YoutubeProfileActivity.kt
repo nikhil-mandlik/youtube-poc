@@ -36,6 +36,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.SignInButton
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.GoogleApi
+import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
 import com.google.api.client.auth.oauth2.AuthorizationCodeFlow
@@ -45,6 +47,7 @@ import com.google.api.client.auth.oauth2.TokenRequest
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.YouTubeScopes
 import com.nikhil.here.youtube_poc.databinding.ActivityYoutubeProfileBinding
 import com.nikhil.here.youtube_poc.ui.theme.YoutubepocTheme
@@ -142,17 +145,12 @@ class YoutubeProfileActivity : FragmentActivity() {
                     }) {
                         Text(text = "Fetch User Youtube Activities")
                     }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = {
-                        youtubeProfileViewModel.fetchAuthInfo()
+                        youtubeProfileViewModel.fetchPlayList()
                     }) {
-                        Text(text = "Fetch Auth Info")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = {
-                        youtubeProfileViewModel.fetchTokenInfo()
-                    }) {
-                        Text(text = "Fetch Auth Info")
+                        Text(text = "Fetch playlists")
                     }
                     Divider()
                     YoutubeFeed()
@@ -196,8 +194,6 @@ class YoutubeProfileActivity : FragmentActivity() {
             if (hasYoutubePermission) {
                 fetchYoutubeFeed()
             }
-            //val token = GoogleAccountCredential.usingOAuth2(this, listOf(YouTubeScopes.YOUTUBE_READONLY)).token
-            //Log.i(TAG, "initializeGooglePlayServices: token $token")
             lastSignedInAccount.account?.let { account ->
                 Log.i(
                     TAG,
@@ -209,6 +205,7 @@ class YoutubeProfileActivity : FragmentActivity() {
                     TAG,
                     "initializeGooglePlayServices: isExpired ${lastSignedInAccount.isExpired}"
                 )
+                Log.i(TAG, "initializeGooglePlayServices: server auth code ${lastSignedInAccount.serverAuthCode}")
                 fetchToken(account = account)
             }
         }
@@ -233,6 +230,7 @@ class YoutubeProfileActivity : FragmentActivity() {
     }
 
     private fun fetchYoutubeFeed() {
+        //val ytService = YouTube.Builder()
     }
 
     private fun initiateGoogleSignIn() {
@@ -257,7 +255,7 @@ class YoutubeProfileActivity : FragmentActivity() {
             val mGoogleSignInClient2 = GoogleSignIn.getClient(this, gso)
             val task = mGoogleSignInClient2.silentSignIn()
             task.addOnSuccessListener {
-                Log.i(TAG, "silentSignIn: isExpired ${it.isExpired}")
+                Log.i(TAG, "silentSignIn: account ${it.displayName} isExpired ${it.isExpired}")
             }
         } catch (e: Exception) {
             Log.i(TAG, "silentSignIn: exception $e")
