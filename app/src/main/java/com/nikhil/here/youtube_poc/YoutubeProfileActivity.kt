@@ -1,253 +1,259 @@
 package com.nikhil.here.youtube_poc
 
 import android.accounts.Account
-import android.accounts.AccountManager
-import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.util.ExponentialBackOff
+import com.google.android.gms.auth.GoogleAuthUtil
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
+import com.google.android.gms.tasks.Task
 import com.google.api.services.youtube.YouTubeScopes
-import com.google.api.services.youtube.model.Channel
-import com.google.api.services.youtube.model.ChannelListResponse
-import com.nikhil.here.youtube_poc.databinding.ActivityYoutubeProfileBinding
+import com.nikhil.here.youtube_poc.ui.UserProfile
+import com.nikhil.here.youtube_poc.ui.YoutubeFeed
+import com.nikhil.here.youtube_poc.ui.theme.YoutubepocTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import pub.devrel.easypermissions.AfterPermissionGranted
-import pub.devrel.easypermissions.EasyPermissions
 
 
 @AndroidEntryPoint
-class YoutubeProfileActivity : ComponentActivity(), EasyPermissions.PermissionCallbacks {
-    private lateinit var binding: ActivityYoutubeProfileBinding
-    private var mCredential: GoogleAccountCredential? = null
-
+class YoutubeProfileActivity : FragmentActivity() {
+    private val ytViewModel: YoutubeProfileViewModel by viewModels()
+    private var mGoogleSignInClient: GoogleSignInClient? = null
+    private var mGoogleSignInOptions: GoogleSignInOptions? = null
+    private var mToken: String = ""
 
     companion object {
         private const val TAG = "YoutubeProfileActivity"
-        private const val REQUEST_ACCOUNT_PICKER = 1000
-        private const val REQUEST_AUTHORIZATION = 1001
-        private const val REQUEST_GOOGLE_PLAY_SERVICES = 1002
-        private const val REQUEST_PERMISSION_GET_ACCOUNTS = 1003
-        private const val PREF_ACCOUNT_NAME = "accountName"
+        private const val RC_YOUTUBE_PERMISSION = 102
+    }
 
+    private val startForResult = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        handleSignInResult(task)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityYoutubeProfileBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        initListeners()
-    }
-
-    private fun initListeners() {
-        mCredential = GoogleAccountCredential
-            .usingOAuth2(applicationContext, listOf(YouTubeScopes.YOUTUBE_READONLY))
-            .setBackOff(ExponentialBackOff())
-        getResultsFromApi()
-    }
-
-
-    /**
-     * Attempt to call the API, after verifying that all the preconditions are
-     * satisfied. The preconditions are: Google Play Services installed, an
-     * account was selected and the device currently has online access. If any
-     * of the preconditions are not satisfied, the app will prompt the user as
-     * appropriate.
-     */
-    private fun getResultsFromApi() {
-        if (!isGooglePlayServiceAvailable()) {
-            acquireGooglePlayServices()
-        } else if (mCredential!!.selectedAccountName == null) {
-            chooseAccount()
-        } else if (!isDeviceOnline()) {
-            Log.i(TAG, "getResultsFromApi: No Network")
-        } else {
-            makeRequest()
-        }
-    }
-
-    private fun makeRequest() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val transport = NetHttpTransport()
-            val jsonFactory = JacksonFactory.getDefaultInstance()
-            mCredential?.let {
-                val service =
-                    com.google.api.services.youtube.YouTube.Builder(transport, jsonFactory, it)
-                        .setApplicationName("YouTube Data API Android Quickstart")
-                        .build();
-
-                try {
-                    val result: ChannelListResponse =
-                        service.channels().list("snippet,contentDetails,statistics")
-                            .setForUsername("GoogleDevelopers")
-                            .execute()
-                    val channels: List<Channel>? = result.items
-                    if (channels != null) {
-                        val channel: Channel = channels[0]
-                        Log.i(
-                            TAG, "makeRequest: This channel's ID is " + channel.getId() + ". " +
-                                    "Its title is '" + channel.getSnippet().getTitle() + ", " +
-                                    "and it has " + channel.getStatistics()
-                                .getViewCount() + " views."
-                        )
+        setContent {
+            YoutubepocTheme {
+                val state by ytViewModel.container.stateFlow.collectAsState()
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    UserProfile(state)
+                    Divider(modifier = Modifier.padding(16.dp))
+                    if (state.isVerified.not() || state.hasYoutubePermission.not()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            if (state.isVerified.not()) {
+                                Button(onClick = {
+                                    initiateGoogleSignIn()
+                                }) {
+                                    Text(text = "Google Sign In")
+                                }
+                            }
+                            if (state.hasYoutubePermission.not()) {
+                                Button(
+                                    onClick = {
+                                        requestYtPermission()
+                                    }
+                                ) {
+                                    Text(text = "Req YT Permission")
+                                }
+                            }
+                        }
+                        Divider(modifier = Modifier.padding(16.dp))
                     }
-                } catch (e: Exception) {
-                    Log.i(TAG, "makeRequest exception : $e")
+
+                    if (state.isVerified) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            if (state.isExpired) {
+                                Button(onClick = {
+                                    silentSignIn()
+                                }) {
+                                    Text(text = "Silent Sign In")
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    invalidateAndFetchNewToken()
+                                }
+                            ) {
+                                Text(text = "Invalidate Token")
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Button(onClick = {
+                                ytViewModel.fetchDefaultPlayLists()
+                            }) {
+                                Text(text = "Fetch Default")
+                            }
+                            Button(onClick = {
+                                ytViewModel.fetchUserPlayList()
+                            }) {
+                                Text(text = "Fetch User")
+                            }
+                        }
+                        Divider(modifier = Modifier.padding(16.dp))
+                    }
+
+                    YoutubeFeed(state.items)
                 }
             }
+        }
+        initGooglePlayServices()
+    }
 
-
+    private fun invalidateAndFetchNewToken() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                GoogleAuthUtil.clearToken(this@YoutubeProfileActivity, mToken)
+                val lastSignedInAccount =
+                    GoogleSignIn.getLastSignedInAccount(this@YoutubeProfileActivity)
+                lastSignedInAccount?.account?.let { fetchToken(it) }
+            } catch (e: Exception) {
+                Log.i(TAG, "invalidateAndFetchNewToken: exception $e")
+            }
         }
     }
 
-    /**
-     * Attempts to set the account used with the API credentials. If an account
-     * name was previously saved it will use that one; otherwise an account
-     * picker dialog will be shown to the user. Note that the setting the
-     * account to use with the credentials object requires the app to have the
-     * GET_ACCOUNTS permission, which is requested here if it is not already
-     * present. The AfterPermissionGranted annotation indicates that this
-     * function will be rerun automatically whenever the GET_ACCOUNTS permission
-     * is granted.
-     */
-    @AfterPermissionGranted(REQUEST_PERMISSION_GET_ACCOUNTS)
-    private fun chooseAccount() {
-        if (EasyPermissions.hasPermissions(this, android.Manifest.permission.GET_ACCOUNTS)
-        ) {
-            val accountName = getPreferences(Context.MODE_PRIVATE)
-                .getString(PREF_ACCOUNT_NAME, null)
-            if (accountName != null) {
-                mCredential!!.selectedAccountName = accountName
-                getResultsFromApi()
-            } else {
-                // Start a dialog from which the user can choose an account
-                startActivityForResult(
-                    mCredential!!.newChooseAccountIntent(),
-                    REQUEST_ACCOUNT_PICKER
-                )
-
-                mCredential.googleAccountManager.
+    private fun initGooglePlayServices() = lifecycleScope.launch(Dispatchers.IO) {
+        GoogleSignIn.getLastSignedInAccount(this@YoutubeProfileActivity)?.let {
+            Log.i(TAG, "initGooglePlayServices: found last signed in account")
+            ytViewModel.updateGoogleAccount(account = it)
+            it.account?.let { account ->
+                Log.i(TAG, "initGooglePlayServices: fetching token for account ${account.name}")
+                fetchToken(account = account)
             }
+        }
+    }
 
-        } else {
-            // Request the GET_ACCOUNTS permission via a user dialog
-            EasyPermissions.requestPermissions(
-                this,
-                "This app needs to access your Google account (via Contacts).",
-                REQUEST_PERMISSION_GET_ACCOUNTS,
-                android.Manifest.permission.GET_ACCOUNTS
+    private fun fetchToken(account: Account) = lifecycleScope.launch(Dispatchers.IO) {
+        try {
+            val scope = "oauth2:${Scope(YouTubeScopes.YOUTUBE_READONLY).scopeUri}"
+            val token = GoogleAuthUtil.getToken(
+                this@YoutubeProfileActivity,
+                account,
+                scope
+            )
+            mToken = token
+            Log.i(TAG, "fetchToken: token $token")
+            ytViewModel.updateAccessToken(token)
+        } catch (e: Exception) {
+            Log.i(TAG, "fetchToken exception :  ${e.localizedMessage}")
+        }
+    }
+
+
+    private fun initiateGoogleSignIn() {
+        mGoogleSignInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .build()
+        mGoogleSignInClient = GoogleSignIn.getClient(this, mGoogleSignInOptions!!)
+        val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(this)
+        if (lastSignedInAccount == null) {
+            mGoogleSignInClient?.signInIntent?.let {
+                startForResult.launch(it)
+            }
+        }
+    }
+
+    private fun silentSignIn() {
+        try {
+            val gso = mGoogleSignInOptions
+                ?: GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .build()
+            val client = mGoogleSignInClient ?: GoogleSignIn.getClient(this, gso)
+            val task = client.silentSignIn()
+            task.addOnSuccessListener {
+                ytViewModel.updateGoogleAccount(it)
+                it.account?.let { account ->
+                    fetchToken(account = account)
+                }
+            }
+        } catch (e: Exception) {
+            Log.i(TAG, "silentSignIn: exception $e")
+        }
+    }
+
+    private fun requestYtPermission() {
+        GoogleSignIn.getLastSignedInAccount(this)?.let {
+            val hasPermission =
+                GoogleSignIn.hasPermissions(it, Scope(YouTubeScopes.YOUTUBE_READONLY))
+            if (hasPermission.not()) {
+                GoogleSignIn.requestPermissions(
+                    this, RC_YOUTUBE_PERMISSION, it,
+                    Scope(YouTubeScopes.YOUTUBE_READONLY)
+                )
+            }
+        }
+    }
+
+    private fun handleSignInResult(task: Task<GoogleSignInAccount>) {
+        try {
+            val account = task.getResult(ApiException::class.java)
+            initGooglePlayServices()
+        } catch (e: ApiException) {
+            Log.i(
+                TAG,
+                "handleSignInResult exception : status ${e.status} statusCode ${e.statusCode} localizedMessage ${e.localizedMessage}"
             )
         }
     }
 
-
-    private fun isGooglePlayServiceAvailable(): Boolean {
-        val apiAvailability = GoogleApiAvailability.getInstance()
-        val connectionStatusCode = apiAvailability.isGooglePlayServicesAvailable(this)
-        return connectionStatusCode == ConnectionResult.SUCCESS
-    }
-
-    /**
-     * Attempt to resolve a missing, out-of-date, invalid or disabled Google
-     * Play Services installation via a user dialog, if possible.
-     */
-    private fun acquireGooglePlayServices() {
-        val apiAvailability = GoogleApiAvailability.getInstance()
-        val connectionStatusCode = apiAvailability.isGooglePlayServicesAvailable(this)
-        if (apiAvailability.isUserResolvableError(connectionStatusCode)) {
-            showGooglePlayServicesAvailabilityErrorDialog(connectionStatusCode)
-        }
-    }
-
-    /**
-     * Display an error dialog showing that Google Play Services is missing
-     * or out of date.
-     * @param connectionStatusCode code describing the presence (or lack of)
-     * Google Play Services on this device.
-     */
-    private fun showGooglePlayServicesAvailabilityErrorDialog(
-        connectionStatusCode: Int
-    ) {
-        val apiAvailability = GoogleApiAvailability.getInstance()
-        val dialog = apiAvailability.getErrorDialog(
-            this@YoutubeProfileActivity,
-            connectionStatusCode,
-            REQUEST_GOOGLE_PLAY_SERVICES
-        )
-        dialog?.show()
-    }
-
-    override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
-       getResultsFromApi()
-    }
-
-    override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
-        TODO("Not yet implemented")
-    }
-
-    /**
-     * Checks whether the device currently has a network connection.
-     * @return true if the device has a network connection, false otherwise.
-     */
-    private fun isDeviceOnline(): Boolean {
-        val connMgr = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val networkInfo = connMgr.activeNetworkInfo
-        return networkInfo != null && networkInfo.isConnected
-    }
-
-
-    override fun onActivityResult(
-        requestCode: Int, resultCode: Int, data: Intent?
-    ) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            REQUEST_GOOGLE_PLAY_SERVICES -> if (resultCode != RESULT_OK) {
-                Toast.makeText(
-                    this@YoutubeProfileActivity,
-                    "This app requires Google Play Services. Please install " +
-                            "Google Play Services on your device and relaunch this app.",
-                    Toast.LENGTH_SHORT
-                ).show()
-            } else {
-                getResultsFromApi()
-            }
-
-            REQUEST_ACCOUNT_PICKER -> if (resultCode == RESULT_OK && data != null && data.extras != null) {
-                val accountName = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
-                val type = data.getStringExtra(AccountManager.KEY_ACCOUNT_TYPE)
-
-                Log.i(TAG, "onActivityResult: data ${data.extras} accountName $accountName and type $type")
-
-
-                if (accountName != null) {
-                    val settings = getPreferences(MODE_PRIVATE)
-                    val editor = settings.edit()
-                    editor.putString(PREF_ACCOUNT_NAME, accountName)
-                    editor.apply()
-                    mCredential?.selectedAccount = Account(
-                        accountName,
-                        type
-                    )
-                    getResultsFromApi()
-                }
-
-            }
-
-            REQUEST_AUTHORIZATION -> if (resultCode == RESULT_OK) {
-                getResultsFromApi()
-            }
+        Log.i(TAG, "onActivityResult: requestCode $requestCode resultCode $resultCode data $data")
+        if (requestCode == RC_YOUTUBE_PERMISSION && resultCode == RESULT_OK) {
+            initGooglePlayServices()
         }
     }
+
 }
