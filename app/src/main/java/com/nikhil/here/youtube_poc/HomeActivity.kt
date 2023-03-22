@@ -25,6 +25,10 @@ class HomeActivity : ComponentActivity() {
         binding.btnYtProfile.setOnClickListener {
             startActivity(Intent(this, YoutubeProfileActivity::class.java))
         }
+
+        binding.btnDeviceInfo.setOnClickListener {
+            startActivity(Intent(this, AudioDeviceInfoActivity::class.java))
+        }
     }
 
 

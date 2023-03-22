@@ -52,6 +52,22 @@
         android:layout_marginTop="6dp"
         android:layout_marginHorizontal="16dp"/>
 
+    <Button
+        android:id="@+id/btnGetPlayBackInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get Play Back info"
+        />
+
+    <Button
+        android:id="@+id/btnUpdateToSpeakerPhone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Update to Speaker"
+        android:layout_marginTop="16dp"
+        />
+
+
 
 
 </LinearLayout>

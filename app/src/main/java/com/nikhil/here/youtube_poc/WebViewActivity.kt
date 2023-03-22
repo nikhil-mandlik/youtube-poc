@@ -1,17 +1,25 @@
 package com.nikhil.here.youtube_poc
 
+import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import androidx.activity.ComponentActivity
+import androidx.annotation.RequiresApi
 import com.nikhil.here.youtube_poc.databinding.ActivityWebViewBinding
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.YouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
-import org.json.JSONObject
+import java.util.concurrent.Executor
+
 
 class WebViewActivity : ComponentActivity() {
     private lateinit var binding: ActivityWebViewBinding
@@ -86,9 +94,14 @@ class WebViewActivity : ComponentActivity() {
         ) {
 //            Log.i(TAG, "onVideoLoadedFraction: $loadedFraction")
         }
-
     }
 
+    private fun updateAudioRoute() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityWebViewBinding.inflate(layoutInflater)
@@ -112,13 +125,15 @@ class WebViewActivity : ComponentActivity() {
                 PlayerConstants.PlayerState.PLAYING -> {
                     ytPlayer?.pause()
                 }
+
                 else -> {
                     ytPlayer?.play()
                 }
             }
         }
-        
-        binding.seekbarVolumeController.setOnSeekBarChangeListener (object  : OnSeekBarChangeListener {
+
+        binding.seekbarVolumeController.setOnSeekBarChangeListener(object :
+            OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 Log.i(TAG, "onProgressChanged: volume : $progress")
                 ytPlayer?.setVolume(progress)
@@ -129,7 +144,7 @@ class WebViewActivity : ComponentActivity() {
             }
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-               
+
             }
         })
 
@@ -137,11 +152,19 @@ class WebViewActivity : ComponentActivity() {
             val current = it.getStreamVolume(AudioManager.STREAM_MUSIC)
             val max = it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
+            it.registerAudioPlaybackCallback(object : AudioManager.AudioPlaybackCallback() {
+                override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+                    super.onPlaybackConfigChanged(configs)
+                    Log.i(TAG, "onPlaybackConfigChanged: $configs")
+                }
+            }, Handler(Looper.getMainLooper()))
+
             Log.i(TAG, "onStartTrackingTouch: current $current max $max")
             binding.seekbarVolumeController.setProgress((current / max) * 100)
         }
 
-        binding.seekbarDurationController.setOnSeekBarChangeListener(object  : OnSeekBarChangeListener {
+        binding.seekbarDurationController.setOnSeekBarChangeListener(object :
+            OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val seekDuration = (progress * duration) / 100
                 ytPlayer?.seekTo(seekDuration)
@@ -156,7 +179,23 @@ class WebViewActivity : ComponentActivity() {
             }
         })
 
-       
+        binding.btnGetPlayBackInfo.setOnClickListener {
+            val manager = this.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val configurations = manager.activePlaybackConfigurations
+            Log.i(TAG, "configuration: $configurations ")
+            configurations.forEach {
+                Log.i(TAG, "configuration: $it audio attributes info :  ${it.audioAttributes} ")
+            }
+            val devices = manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            val microphones = manager.microphones
+            Log.i(TAG, "onCreate: devices ${devices.joinToString { it.productName}}")
+            Log.i(TAG, "onCreate: microPhones ${microphones.joinToString("\n") { "type : ${it.type} - description : ${it.description} - functionality ${it.location}"}}")
+        }
+
+        binding.btnUpdateToSpeakerPhone.setOnClickListener {
+            updateAudioRoute()
+
+        }
 
     }
 }

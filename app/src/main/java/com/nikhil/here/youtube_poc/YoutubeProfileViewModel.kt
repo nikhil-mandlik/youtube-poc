@@ -56,6 +56,7 @@ class YoutubeProfileViewModel @Inject constructor(
 
     fun updateAccessToken(token: String) {
         accessToken = token
+        Log.i(TAG, "updateAccessToken: $accessToken")
     }
 
     fun fetchUserPlayList() {

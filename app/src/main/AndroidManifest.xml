@@ -21,8 +21,11 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Youtubepoc"
+        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
         tools:targetApi="31">
+        <activity
+            android:name=".AudioDeviceInfoActivity"
+            android:exported="false" />
         <activity
             android:name=".YoutubeProfileActivity"
             android:exported="false" />
@@ -39,10 +42,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <meta-data
-            android:name="com.google.android.youtube.v3.API_KEY"
-            android:value="<YOUR_API_KEY>"/>
     </application>
 
 </manifest>

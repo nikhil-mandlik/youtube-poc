@@ -19,5 +19,12 @@
         android:layout_marginTop="16dp"
         android:text="YT Profile"/>
 
+    <Button
+        android:id="@+id/btnDeviceInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Device Info"/>
+
 
 </LinearLayout>
